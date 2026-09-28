@@ -1,4 +1,3 @@
-import { IconLogout } from "@tabler/icons-react";
 import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import {
@@ -10,17 +9,42 @@ import {
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth-client";
 import { clearCachedSession } from "@/lib/session-cache";
 
-export function SignOut() {
+/**
+ * Sign-out confirmation.
+ *
+ * Must be rendered as a SIBLING of the account DropdownMenu, never inside
+ * DropdownMenuContent. The menu popup lives in a Base UI portal with
+ * `keepMounted: false`, so closing the menu unmounts its entire subtree.
+ * Base UI's AlertDialog does not join the menu's floating tree (Dialog.Root has
+ * no `tree` prop), which means any press inside the portaled dialog counts as
+ * an outside press for the menu — the menu would close and destroy the dialog
+ * the instant it appeared. This is the "Open a dialog" pattern from the Base UI
+ * Menu docs: control the dialog from state owned outside the menu and open it
+ * from the item's `onClick`.
+ */
+export function SignOut({
+	open,
+	onOpenChange,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+}) {
 	const router = useRouter();
-	const [open, setOpen] = useState(false);
 	const [isSigningOut, setIsSigningOut] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+
+	// This component stays mounted across open/close, so a failed attempt's
+	// message would otherwise still be showing the next time the dialog opens.
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (nextOpen) {
+			setError(null);
+		}
+		onOpenChange(nextOpen);
+	};
 
 	const handleSignOut = async () => {
 		setIsSigningOut(true);
@@ -29,7 +53,7 @@ export function SignOut() {
 			await authClient.signOut({
 				fetchOptions: {
 					onSuccess: () => {
-						setOpen(false);
+						onOpenChange(false);
 						clearCachedSession();
 						router.navigate({ to: "/" });
 						// Re-run loaders so session-dependent UI (header, /dashboard
@@ -52,22 +76,7 @@ export function SignOut() {
 	};
 
 	return (
-		<AlertDialog open={open} onOpenChange={setOpen}>
-			<AlertDialogTrigger
-				nativeButton={false}
-				render={
-					<DropdownMenuItem
-						className="flex w-full cursor-pointer items-center gap-3 py-2.5 text-destructive focus:text-destructive"
-						onSelect={(e) => {
-							e.preventDefault();
-							setOpen(true);
-						}}
-					/>
-				}
-			>
-				<IconLogout className="h-4 w-4" stroke={1.75} />
-				<span className="font-medium">Sign Out</span>
-			</AlertDialogTrigger>
+		<AlertDialog open={open} onOpenChange={handleOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
 					<AlertDialogTitle>Sign out of your account?</AlertDialogTitle>

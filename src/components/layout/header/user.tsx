@@ -1,5 +1,6 @@
-import { IconLayoutDashboard } from "@tabler/icons-react";
+import { IconLayoutDashboard, IconLogout } from "@tabler/icons-react";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -20,6 +21,12 @@ export default function UserDropDown({
 }: {
 	session: SessionPayload | null;
 }) {
+	// Owned here, above the signed-out early return (hooks must not be
+	// conditional) and deliberately outside <DropdownMenu> so the confirm
+	// dialog's lifetime is not tied to the menu's portal. See the note on
+	// <SignOut />.
+	const [signOutOpen, setSignOutOpen] = useState(false);
+
 	if (!session?.user) {
 		return (
 			// Quiet auth action — lets the gold Enroll CTA own the bar's hierarchy
@@ -111,10 +118,21 @@ export default function UserDropDown({
 
 					<DropdownMenuSeparator />
 
-					{/* Sign Out */}
-					<SignOut />
+					{/* Sign Out — only opens the dialog, which is rendered outside
+					    this menu below. */}
+					<DropdownMenuItem
+						variant="destructive"
+						className="flex w-full cursor-pointer items-center gap-3 py-2.5"
+						onClick={() => setSignOutOpen(true)}
+					>
+						<IconLogout className="h-4 w-4" stroke={1.75} />
+						<span className="font-medium">Sign Out</span>
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+
+			{/* Sibling of the menu, not a child of DropdownMenuContent. */}
+			<SignOut open={signOutOpen} onOpenChange={setSignOutOpen} />
 		</div>
 	);
 }
